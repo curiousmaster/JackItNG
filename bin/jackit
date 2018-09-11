@@ -10,6 +10,7 @@ import datetime
 import platform
 import click
 import tabulate
+import sqlite3
 from jackit import duckyparser
 from jackit import mousejack
 from jackit import keylogger
@@ -27,6 +28,40 @@ B = '\033[34m'  # blue
 P = '\033[35m'  # purple
 C = '\033[36m'  # cyan
 GR = '\033[37m'  # gray
+
+#==================================================
+# DATABASE DEFINITION
+#==================================================
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+DB = "jackit.db"
+CONN = sqlite3.connect(DB)
+CONN.row_factory = dict_factory
+C = CONN.cursor()
+
+def DB_create():
+    global C
+
+    sql = "CREATE TABLE IF NOT EXISTS device (key INTEGER PRIMARY KEY, address TEXT UNIQUE, channels TEXT, poll INT, seen TEXT, model TEXT, packet TEXT)"
+
+    try:
+        C.execute(sql)
+    except:
+        _print_err("Database already exists... continuing using old database")
+
+def DB_insert(address, channel, poll, seen, model, packet):
+    global C
+
+    sql = "INSERT or REPLACE INTO device ( address, channels, poll, seen, model, packet ) VALUES ( \"{address}\", \"{channel}\", {poll}, \"{seen}\", \"{model}\", \"{packet}\");".format(address=address, channel=channel, poll=poll, seen=seen, model=model, packet=packet)
+    C.execute(sql)
+
+#==================================================
+
 
 
 def launch_attacks(jack, targets, attack, use_ping=True):
@@ -91,7 +126,13 @@ def scan_loop(jack, interval, targeted, address):
             jack.to_display(device['payload'])
         ])
 
+        DB_insert(addr_string, "".join(str(x) for x in device['channels']), device['count'], str(int(time.time())), device_name, jack.to_display(device['payload']))
+
+    CONN.commit()
+
     print(tabulate.tabulate(pretty_devices, headers=["KEY", "ADDRESS", "CHANNELS", "COUNT", "SEEN", "TYPE", "PACKET"]))
+    print( "="*80 )
+    print( "Devices found: {ndev}\n".format(ndev=len(jack.devices) ) )
 
 
 def _print_err(text):
@@ -134,8 +175,12 @@ def confirm_root():
 @click.option('--keylogging', is_flag=True, help="Log keystrokes for XOR encrypted MS keyboards")
 def cli(debug, script, lowpower, interval, layout, address, vendor, reset, autopwn, all_channels, keylogging):
 
+    global CONN
+
     banner()
     confirm_root()
+
+    DB_create()
 
     if debug:
         print(O + "[W] " + W + "Debug is enabled.")
@@ -217,6 +262,8 @@ def cli(debug, script, lowpower, interval, layout, address, vendor, reset, autop
                 scan_loop(jack, interval, targeted, address)
         except KeyboardInterrupt:
             print()
+            CONN.commit()
+            CONN.close()
 
         if len(jack.devices) == 0:
             _print_err("No devices found please try again...")
