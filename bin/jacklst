@@ -1,0 +1,72 @@
+#!  /usr/bin/python
+
+import time
+import tabulate
+import sqlite3
+from sqlite3 import Error
+import sys
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+
+ 
+def create_connection(db_file):
+    """ create a database connection to the SQLite database
+        specified by the db_file
+    :param db_file: database file
+    :return: Connection object or None
+    """
+    try:
+        conn = sqlite3.connect(db_file)
+        return conn
+    except Error as e:
+        print(e)
+ 
+    return None
+
+def select_all_tasks(conn):
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM device ORDER BY seen;")
+ 
+    rows = cur.fetchall()
+ 
+    pretty_devices = []
+    for row in rows:
+        addr    = row['address']
+        ch      = row['channels']
+        cnt     = row['poll']
+        seen    = row['seen']
+        model   = row['model']
+        pck     = row['packet']
+
+        tm      = time.ctime(float(seen))
+
+
+        pretty_devices.append([
+            addr,
+            ch,
+            cnt,
+            str(tm),
+            model
+        ])
+
+    print(tabulate.tabulate(pretty_devices, headers=["ADDRESS", "CHANNELS", "COUNT", "SEEN", "TYPE"]))
+
+ 
+def main():
+    database = "jackit.db"
+ 
+    # create a database connection
+    conn = create_connection(database)
+    conn.row_factory = dict_factory
+
+    with conn:
+        select_all_tasks(conn)
+ 
+ 
+if __name__ == '__main__':
+    main()
