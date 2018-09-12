@@ -18,7 +18,6 @@ setup(
         "click==5.1",
         "pyusb==1.0.0",
         "tabulate==0.7.5",
-        "sqlite3==2.6.0",
         "six==1.10.0"
     ],
 )
