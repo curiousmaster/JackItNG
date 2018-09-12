@@ -27,7 +27,7 @@ def DB_connection(db_file):
 
 def DB_select(conn):
     cur = conn.cursor()
-    cur.execute("SELECT * FROM device ORDER BY seen;")
+    cur.execute("SELECT * FROM device ORDER BY seen DESC;")
  
     rows = cur.fetchall()
  
