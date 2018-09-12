@@ -47,7 +47,8 @@ C = CONN.cursor()
 def DB_create():
     global C
 
-    sql = "CREATE TABLE IF NOT EXISTS device (key INTEGER PRIMARY KEY, address TEXT UNIQUE, channels TEXT, poll INT, seen TEXT, model TEXT, packet TEXT)"
+    #sql = "CREATE TABLE IF NOT EXISTS device (key INTEGER PRIMARY KEY, address TEXT UNIQUE, channels TEXT, poll INT, seen TEXT, model TEXT, packet TEXT)"
+    sql = "CREATE TABLE IF NOT EXISTS device (address TEXT UNIQUE, channels TEXT, poll INT, seen TEXT, model TEXT, packet TEXT)"
 
     try:
         C.execute(sql)
@@ -126,7 +127,7 @@ def scan_loop(jack, interval, targeted, address):
             jack.to_display(device['payload'])
         ])
 
-        DB_insert(addr_string, "".join(str(x) for x in device['channels']), device['count'], str(int(time.time())), device_name, jack.to_display(device['payload']))
+        DB_insert(addr_string, ",".join(str(x) for x in device['channels']), device['count'], str(device['timestamp']), device_name, jack.to_display(device['payload']))
 
     CONN.commit()
 
