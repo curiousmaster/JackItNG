@@ -5,6 +5,7 @@ import tabulate
 import sqlite3
 from sqlite3 import Error
 import sys
+import os.path
 
 def dict_factory(cursor, row):
     d = {}
@@ -14,21 +15,17 @@ def dict_factory(cursor, row):
 
 
  
-def create_connection(db_file):
-    """ create a database connection to the SQLite database
-        specified by the db_file
-    :param db_file: database file
-    :return: Connection object or None
-    """
+def DB_connection(db_file):
     try:
         conn = sqlite3.connect(db_file)
         return conn
     except Error as e:
         print(e)
+        sys.exit()
  
     return None
 
-def select_all_tasks(conn):
+def DB_select(conn):
     cur = conn.cursor()
     cur.execute("SELECT * FROM device ORDER BY seen;")
  
@@ -59,13 +56,18 @@ def select_all_tasks(conn):
  
 def main():
     database = "jackit.db"
- 
-    # create a database connection
-    conn = create_connection(database)
-    conn.row_factory = dict_factory
 
-    with conn:
-        select_all_tasks(conn)
+    if os.path.isfile(database):
+     
+        # create a database connection
+        conn = DB_connection(database)
+
+        with conn:
+            conn.row_factory = dict_factory
+            DB_select(conn)
+    else:
+        print("No database file found")
+        sys.exit()
  
  
 if __name__ == '__main__':

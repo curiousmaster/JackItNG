@@ -1,5 +1,6 @@
 .DS_Store
 ducky.txt
+jackit.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
