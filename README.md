@@ -19,7 +19,7 @@ Once your CrazyRadio PA is ready, you can launch JackItNG via:
 sudo jackit
 ```
 
-After running jackit, found devices will be stored in a SQLite3 database in the current directory. This file can later on be parsed with the jacklst command.
+After running jackit, found devices will be stored in an SQLite3 database in the current directory. This file can later on be parsed with the jacklst command.
 
 ```
 sudo jacklst
