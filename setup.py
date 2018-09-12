@@ -10,7 +10,7 @@ setup(
     version='0.1.0',
     author='infamy and phikshun',
     packages=['jackit', 'jackit.lib', 'jackit.plugins'],
-    scripts=['bin/jackit'],
+    scripts=['bin/jackit','bin/jacklst'],
     url='https://github.com/insecurityofthings/jackit',
     license='BSD',
     description='Exploit framework for MouseJack vulnerability.',
