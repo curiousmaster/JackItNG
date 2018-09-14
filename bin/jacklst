@@ -51,7 +51,7 @@ def DB_select(conn):
             model
         ])
 
-    print(tabulate.tabulate(pretty_devices, headers=["ADDRESS", "CHANNELS", "COUNT", "SEEN", "TYPE"]))
+    print(tabulate.tabulate(pretty_devices, headers=["ADDRESS", "CHANNELS", "COUNT", "SEEN", "TYPE"],tablefmt="simple"))
 
  
 def main():
