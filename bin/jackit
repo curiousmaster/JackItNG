@@ -29,6 +29,8 @@ P = '\033[35m'  # purple
 C = '\033[36m'  # cyan
 GR = '\033[37m'  # gray
 
+reset = True
+
 #==================================================
 # DATABASE DEFINITION
 #==================================================
@@ -182,6 +184,7 @@ def confirm_root():
 @click.option('--keylogging', is_flag=True, help="Log keystrokes for XOR encrypted MS keyboards")
 def cli(debug, script, lowpower, interval, layout, address, vendor, reset, autopwn, all_channels, keylogging):
 
+    reset = True
     global CONN
 
     banner()
