@@ -1,18 +1,42 @@
 #!  /usr/bin/python
 
+import os
+import sys
+import platform
 import time
 import tabulate
 import sqlite3
 from sqlite3 import Error
-import sys
-import os.path
+
+
+# some console colours
+W = '\033[0m'  # white (normal)
+R = '\033[31m'  # red
+G = '\033[32m'  # green
+O = '\033[33m'  # orange
+B = '\033[34m'  # blue
+P = '\033[35m'  # purple
+C = '\033[36m'  # cyan
+GR = '\033[37m'  # gray
+
+
+def confirm_root():
+    # make sure we are root
+    if os.getuid() != 0 and platform.system() != 'Darwin':
+        _print_err("ERROR: You need to run as root!")
+        _print_err("login as root (su root) or try sudo %s" % sys.argv[0])
+        exit(-1)
+
+
+def _print_err(text):
+    print(R + '[!] ' + W + text)
+
 
 def dict_factory(cursor, row):
     d = {}
     for idx, col in enumerate(cursor.description):
         d[col[0]] = row[idx]
     return d
-
 
  
 def DB_connection(db_file):
@@ -53,8 +77,10 @@ def DB_select(conn):
 
     print(tabulate.tabulate(pretty_devices, headers=["ADDRESS", "CHANNELS", "COUNT", "SEEN", "TYPE"],tablefmt="simple"))
 
- 
+
 def main():
+
+    confirm_root()
 
     JACKDIR = os.path.expanduser("~") + "/.jackit"
     database = JACKDIR + "/jackit.db"
