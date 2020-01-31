@@ -55,7 +55,9 @@ def DB_select(conn):
 
  
 def main():
-    database = "jackit.db"
+
+    JACKDIR = os.path.expanduser("~") + "/.jackit"
+    database = JACKDIR + "/jackit.db"
 
     if os.path.isfile(database):
      

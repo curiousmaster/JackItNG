@@ -39,7 +39,13 @@ def dict_factory(cursor, row):
         d[col[0]] = row[idx]
     return d
 
-DB = "jackit.db"
+
+JACKDIR = os.path.expanduser("~") + "/.jackit"
+
+if not os.path.exists(JACKDIR):
+    os.makedirs(JACKDIR)
+
+DB = JACKDIR + "/jackit.db"
 CONN = sqlite3.connect(DB)
 CONN.row_factory = dict_factory
 C = CONN.cursor()
