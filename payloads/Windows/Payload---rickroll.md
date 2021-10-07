@@ -1,11 +1,10 @@
-Based on: https://gitlab.com/WarKitteh/arduino-hid-rickroll
+REM Based on: https://gitlab.com/WarKitteh/arduino-hid-rickroll
+REM 
+REM GitLab repo (Modded): https://github.com/BlueArduino20/Rickroll-MODDED
+REM 
+REM It creates and starts 2 vbs files. One of them plays Never Gonna Give You Up from Rick Astley on a loop without any windows showing up. Another vbs file sets the volume to the maximum continuously and if someone tries to get down the volume, it will reset the volume to the maximum level.
 
-GitLab repo (Modded): https://github.com/BlueArduino20/Rickroll-MODDED
-
-It creates and starts 2 vbs files. One of them plays Never Gonna Give You Up from Rick Astley on a loop without any windows showing up. Another vbs file sets the volume to the maximum continuously and if someone tries to get down the volume, it will reset the volume to the maximum level.
-
-Ducky code:
-<pre><code>
+REM Ducky code:
 DELAY 3500
 GUI r
 DELAY 200
@@ -50,4 +49,3 @@ ENTER
 CTRL z
 ENTER
 STRING start rickyou.vbs && volup.vbs
-</pre></code>

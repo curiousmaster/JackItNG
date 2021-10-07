@@ -1,4 +1,4 @@
-The following is a payload I have been working on that waits until a drive labeled "DUCKY" is mounted. I have used some of midnightsnake's code in this payload. The name of the file that is run can be changed to .exe, I am just having it run a batch for testing purposes. The line that says "STRING START %myd%\myEXE.bat" is the line that executes the executable.
+REM The following is a payload I have been working on that waits until a drive labeled "DUCKY" is mounted. I have used some of midnightsnake's code in this payload. The name of the file that is run can be changed to .exe, I am just having it run a batch for testing purposes. The line that says "STRING START %myd%\myEXE.bat" is the line that executes the executable.
 
 ```
 REM Author: overwraith
@@ -72,7 +72,7 @@ STRING EXIT
 ENTER
 ```
 
-The following is the batch file that is run after the "DUCKY" drive has been mounted. Everything is being run invisibly, so you will need to check for the existence of "Message.txt" which will probably be in "C:\Windows\system32".
+REM The following is the batch file that is run after the "DUCKY" drive has been mounted. Everything is being run invisibly, so you will need to check for the existence of "Message.txt" which will probably be in "C:\Windows\system32".
 
 ```
 REM Message.txt

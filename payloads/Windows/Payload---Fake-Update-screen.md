@@ -1,6 +1,6 @@
-This will bring up the windows 10 page of fakeupdate.net and make it fullscreen. Great for going around best buy or Walmart.
-
-Change `http://fakeupdate.net/win10u/index.html` to another page on fakeupdate.net if you target a different OS.
+REM This will bring up the windows 10 page of fakeupdate.net and make it fullscreen. Great for going around best buy or Walmart.
+REM 
+REM Change `http://fakeupdate.net/win10u/index.html` to another page on fakeupdate.net if you target a different OS.
 
 ```
 REM fake update LUL

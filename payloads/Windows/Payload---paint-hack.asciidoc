@@ -1,6 +1,5 @@
-The following is some duck script I made for easily setting up the MS Paint hack from way back in episode 925. Machines secured correctly with group policies are not susceptible to this attack. You are still required to save the file correctly, and input the colors in the correct order, but they should already be in the correct order in the custom color box. The setup script can only work for Windows 7, because Windows Vista's paint app messes up the input.
+REM The following is some duck script I made for easily setting up the MS Paint hack from way back in episode 925. Machines secured correctly with group policies are not susceptible to this attack. You are still required to save the file correctly, and input the colors in the correct order, but they should already be in the correct order in the custom color box. The setup script can only work for Windows 7, because Windows Vista's paint app messes up the input.
 
-```
 REM by overwraith
 REM PAINTHACK_WINDOWS7 BEGINS
 REM MSPAINT hack revealed by "Operator"
@@ -76,4 +75,3 @@ STRING 0
 TAB
 STRING 0
 ENTER
-```

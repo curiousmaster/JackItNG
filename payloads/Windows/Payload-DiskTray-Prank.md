@@ -1,8 +1,8 @@
-Author: Windy42
-
-Description: This will make an .exe that will open the disk tray over and over again.
-
-Note: I do not take all credit for writing this, the prank has been written many times I just converted it into a Payload.
+REM Author: Windy42
+REM 
+REM Description: This will make an .exe that will open the disk tray over and over again.
+REM 
+REM Note: I do not take all credit for writing this, the prank has been written many times I just converted it into a Payload.
 
 ```
 GUI d

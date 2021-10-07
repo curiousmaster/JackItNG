@@ -1,4 +1,4 @@
-The following is something I have been working on based on the payload "Runexe from SD". This payload will work on the twin duck firmwares by executing a script that waits for the ducky to mount the removable storage. The payload also uses some of the member googleknowsbest's code. The for loop which polls for the ducky is the code to which I am referring to. This payload is not hacking related per say, but it could be useful to those who miss autorun files, and sneaker nets.
+REM The following is something I have been working on based on the payload "Runexe from SD". This payload will work on the twin duck firmwares by executing a script that waits for the ducky to mount the removable storage. The payload also uses some of the member googleknowsbest's code. The for loop which polls for the ducky is the code to which I am referring to. This payload is not hacking related per say, but it could be useful to those who miss autorun files, and sneaker nets.
 
 ```
 REM Author: overwraith

@@ -1,4 +1,4 @@
-Original version by redmeatuk. 
+REM Original version by redmeatuk. 
 
 ```
 DEFAULT_DELAY 400

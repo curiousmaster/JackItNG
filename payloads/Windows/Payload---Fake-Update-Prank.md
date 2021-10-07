@@ -1,5 +1,4 @@
-Using fakeupdate.net, set the screen so it looks like eternal fake update is happening. This one's for Win7 but pick your local OS (or more fun - a different one!). If you can give the mouse a slight "shove" downwards to prevent some instances of the menu bar showing up, all the better.
-
+REM Using fakeupdate.net, set the screen so it looks like eternal fake update is happening. This one's for Win7 but pick your local OS (or more fun - a different one!). If you can give the mouse a slight "shove" downwards to prevent some instances of the menu bar showing up, all the better.
 ```
 DELAY 5000
 GUI d

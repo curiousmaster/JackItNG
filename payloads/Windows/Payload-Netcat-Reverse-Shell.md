@@ -1,9 +1,9 @@
-### **Change the following details**:
-* **[NETCAT_DOWNLOAD_LINK]**: Your Netcat download link.
-* **[PORT]**: The port on the target machine you want netcat to listen on.
-* **Directory**: Use something other than %TEMP% if you want to.
-
-## **CODE**:
+REM ### **Change the following details**:
+REM * **[NETCAT_DOWNLOAD_LINK]**: Your Netcat download link.
+REM * **[PORT]**: The port on the target machine you want netcat to listen on.
+REM * **Directory**: Use something other than %TEMP% if you want to.
+REM 
+REM ## **CODE**:
 ```
 REM Title: Netcat Reverse Shell
 REM Author: Kanishk Singh

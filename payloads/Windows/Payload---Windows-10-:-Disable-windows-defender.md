@@ -1,15 +1,15 @@
-A ducky script that disables Windows defender, then clears the action center prompt
-
-NOTE: this is only tested on the windows 10 1607 build, AKA the anniversary edition.
-
-Most older machines will probably need more delay
-
-This can be combined with other scripts. 
-
-
-Preview: https://www.youtube.com/watch?v=XTF0U5jN1us
-
-when combined with [[Payload - Windows 10 : Download and execute file with Powershell]]**:** https://www.youtube.com/watch?v=r6vwQ6QJujg
+REM A ducky script that disables Windows defender, then clears the action center prompt
+REM 
+REM NOTE: this is only tested on the windows 10 1607 build, AKA the anniversary edition.
+REM 
+REM Most older machines will probably need more delay
+REM 
+REM This can be combined with other scripts. 
+REM 
+REM 
+REM Preview: https://www.youtube.com/watch?v=XTF0U5jN1us
+REM 
+REM when combined with [[Payload - Windows 10 : Download and execute file with Powershell]]**:** https://www.youtube.com/watch?v=r6vwQ6QJujg
 
 ```
 REM turn off windows defender then clear action center

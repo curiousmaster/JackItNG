@@ -1,12 +1,11 @@
-* Author: Caleb Hutchinson
+REM * Author: Caleb Hutchinson
+REM 
+REM * Duckencoder: 1.0
+REM 
+REM * Target: Windows 7
+REM 
+REM * Description: Changes the users desktop background to a Rubber Duck saying “YOU GOT QUACKED!” with a Hak5 logo :D
 
-* Duckencoder: 1.0
-
-* Target: Windows 7
-
-* Description: Changes the users desktop background to a Rubber Duck saying “YOU GOT QUACKED!” with a Hak5 logo :D
-
-```
 GUI d
 WINDOWS
 STRING https://i.imgflip.com/1dv8ac.jpg
@@ -33,4 +32,3 @@ MENU
 STRING v
 STRING d
 REM I know its basic but tell what you think im only 14 and this is my first "program" thanks Darren
-```

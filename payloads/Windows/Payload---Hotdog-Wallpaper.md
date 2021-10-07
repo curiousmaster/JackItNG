@@ -1,4 +1,3 @@
-<pre>
 DELAY 3000
 GUI r
 DELAY 100
@@ -35,4 +34,3 @@ DELAY 300
 ALT f
 DELAY 100
 STRING x
-</pre>

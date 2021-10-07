@@ -1,13 +1,13 @@
-GET THE CODE SNIPS HERE:
-
-http://lostserver.com/static/rubberduckcode.txt
-
-It will set the background image on a targets pc to whatever jpg you want - i recommend mylittleponys :) 
-
-Regards Keld Norman@DK
-
-Write this code to your Rubber Ducky payload file using the encoder, the wget is an alias that exist in powershell already: 
----------------------------------------------------------------------
+REM GET THE CODE SNIPS HERE:
+REM 
+REM http://lostserver.com/static/rubberduckcode.txt
+REM 
+REM It will set the background image on a targets pc to whatever jpg you want - i recommend mylittleponys :) 
+REM 
+REM Regards Keld Norman@DK
+REM 
+REM Write this code to your Rubber Ducky payload file using the encoder, the wget is an alias that exist in powershell already: 
+REM ---------------------------------------------------------------------
 SLEEP 600
 
 GUI r

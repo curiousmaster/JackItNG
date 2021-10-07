@@ -1,7 +1,6 @@
-Steals Chrome passwords in the blink of an eye.
-Credits: This payload was created by nuk3leus (https://github.com/Nuk3leus/Ducky-chrome-password-stealer)
-
-EDIT: Google Chrome Version 36.0.1985.143 and below: Any version above is patched and requires user password.
+REM Steals Chrome passwords in the blink of an eye.
+REM Credits: This payload was created by nuk3leus (https://github.com/Nuk3leus/Ducky-chrome-password-stealer)
+REM EDIT: Google Chrome Version 36.0.1985.143 and below: Any version above is patched and requires user password.
 
 ```
 REM Author: Nuk3leus

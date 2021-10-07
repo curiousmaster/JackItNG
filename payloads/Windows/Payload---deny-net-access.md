@@ -1,4 +1,4 @@
-Still needs some work to get it to start up silently on restart. Is another prank script. 
+REM Still needs some work to get it to start up silently on restart. Is another prank script. 
 
 ```
 REM Author: overwraith

@@ -1,6 +1,6 @@
-A simple test to place the EICAR AV test string in a file on the Desktop, which in theory should trigger the AV on the host. Useful if you're assessing a host with no other connectivity.
-
-Original version by tautology.
+REM A simple test to place the EICAR AV test string in a file on the Desktop, which in theory should trigger the AV on the host. Useful if you're assessing a host with no other connectivity.
+REM 
+REM Original version by tautology.
 
 ```
 DEFAULTDELAY 500

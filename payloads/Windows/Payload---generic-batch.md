@@ -1,4 +1,4 @@
-A generic batch payload with built in persistence via registry key. Only runs as advertized on admin accounts. 
+REM A generic batch payload with built in persistence via registry key. Only runs as advertized on admin accounts. 
 
 ```
 REM By overwraith

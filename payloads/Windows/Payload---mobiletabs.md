@@ -1,4 +1,4 @@
-The following is just something that types in a VB script that sends command line arguments to internet explorer and opens new tabs based on the URLs you specify via command line. 
+REM The following is just something that types in a VB script that sends command line arguments to internet explorer and opens new tabs based on the URLs you specify via command line. 
 
 ```
 REM AUTHOR: overwraith

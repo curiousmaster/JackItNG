@@ -1,10 +1,10 @@
-* Author - Ujjwal Thakran
-
-* When You insert the ducky it will run a Powershell download command from which you can use you Kali linux or If you have Metasploit properly installed than also you mac or other Linux Distros to create a meterpeter session with the target computer
-
-* Alternative to [Payload Reverse Shell](https://github.com/hak5darren/USB-Rubber-Ducky/wiki/Payload---reverse-shell)
-
-1. Encode your usb rubber Ducky with the Following
+REM * Author - Ujjwal Thakran
+REM 
+REM * When You insert the ducky it will run a Powershell download command from which you can use you Kali linux or If you have Metasploit properly installed than also you mac or other Linux Distros to create a meterpeter session with the target computer
+REM 
+REM * Alternative to [Payload Reverse Shell](https://github.com/hak5darren/USB-Rubber-Ducky/wiki/Payload---reverse-shell)
+REM 
+REM 1. Encode your usb rubber Ducky with the Following
 
 
 ```

