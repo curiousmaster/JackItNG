@@ -1,0 +1,12 @@
+REM ------------------------------
+REM Prank Windows10 Update screen
+REM ------------------------------
+DELAY 5000
+GUI_R
+DELAY 100
+DELETE 
+DELAY 100
+STRING chrome https://updatefaker.com/windows10/index.html
+ENTER
+DELAY 2000
+F11 
