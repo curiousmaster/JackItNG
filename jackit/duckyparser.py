@@ -156,11 +156,37 @@ class DuckyParser(object):
                     entry['hid'], entry['mod'] = self.char_to_hid(char)
                     entries.append(entry)
 
+            elif line.startswith("REM"):
+                for char in " ".join(line.split()[1:]):
+                    entry = self.blank_entry.copy()
+                    entry['char'] = char
+                    entry['hid'], entry['mod'] = self.char_to_hid(char)
+
             elif line.startswith("ENTER"):
                 entry = self.blank_entry.copy()
                 entry['char'] = "\n"
                 entry['hid'], entry['mod'] = self.char_to_hid('ENTER')
                 entries.append(entry)
+
+            # Misc keys
+            elif line.startswith("F11"):
+                entry = self.blank_entry.copy()
+                entry['char'] = "F11"
+                entry['hid'], entry['mod'] = self.char_to_hid('F11')
+                entries.append(entry)
+
+            elif line.startswith("F12"):
+                entry = self.blank_entry.copy()
+                entry['char'] = "F12"
+                entry['hid'], entry['mod'] = self.char_to_hid('F12')
+                entries.append(entry)
+
+            elif line.startswith("DELETE"):
+                entry = self.blank_entry.copy()
+                entry['char'] = "DELETE"
+                entry['hid'], entry['mod'] = self.char_to_hid('DELETE')
+                entries.append(entry)
+
 
             # arrow keys
             elif line.startswith("UP") or line.startswith("UPARROW"):
@@ -193,4 +219,6 @@ class DuckyParser(object):
             else:
                 print("CAN'T PROCESS... %s" % line)
 
+        print(entries)
+            
         return entries
