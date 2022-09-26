@@ -1,11 +1,3 @@
-REM ==================================
-REM Open Chrome browser in fullscreen
-REM ==================================
-DELAY 1000
-REM GUI r
-DELAY 100
-REM STRING chrome https://www.verisure.com
-STRING echo "chrome https://www.verisure.com"
+DELAY 500
+STRING JackitNG
 ENTER
-REM DELAY 2000
-REM F11

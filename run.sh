@@ -1,11 +1,11 @@
 #!  /usr/bin/sh
 
-PAYLOAD=/home/steben/Projects/JackItNG/payloads/Windows/Payload---Win10_update.txt
 PAYLOAD=pay.pay
-ADDRESS=A6:24:11:44:07
+ADDRESS=93:99:93:F5:0D
 VENDOR=logitech
 INTERVAL=5
 KBD=sv
+
 
 bin/jackit \
   	--reset \
