@@ -279,12 +279,12 @@ class JackItNG(App):
     payload_name = reactive("None")
 
     BINDINGS = [
-        ("q", "quit", "Quit"),
         ("s", "toggle_scan", "Scan"),
         ("p", "select_payload", "Payload"),
         ("v", "view_payload", "View Payload"),
         ("a", "attack_selected", "Attack selected"),
         ("A", "autopwn", "Autopwn"),
+        ("q", "quit", "Quit"),
     ]
 
     def __init__(
