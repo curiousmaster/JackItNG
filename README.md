@@ -110,7 +110,7 @@ For continuous scanning:
 ------------------------------------------------------------------------
 
 ## TUI Keybindings
-
+```
   Key   Action
   ----- ------------------------
   s     Start / Stop scan
@@ -119,7 +119,7 @@ For continuous scanning:
   a     Attack selected device
   A     Attack all devices
   q     Quit
-
+```
 ------------------------------------------------------------------------
 
 ## Identifying Your Own Device
