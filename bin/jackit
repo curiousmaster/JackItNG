@@ -357,7 +357,7 @@ class JackItApp(App):
 
             width = self.size.width
 
-            fancy_line = "─" * width
+            fancy_line = "─" * (width - 1)
 
             summary.update(
                 f"{fancy_line}\nDevices found: {len(self.jack.devices)}"
@@ -448,10 +448,10 @@ class JackItApp(App):
         if self.scanning:
             base = f"SCANNING | RF: {self.duration}s | Interval: {self.interval}s"
         else:
-            base = f"Idle | RF: {self.duration}s | Interval: {self.interval}s"
+            base = f"Idle     | RF: {self.duration}s | Interval: {self.interval}s"
 
-        if message:
-            base = f"{base} | {message}"
+#        if message:
+#            base = f"{base} | {message}"
 
         base += f" | Payload: {self.payload_name}"
 
