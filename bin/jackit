@@ -259,7 +259,7 @@ class PayloadBrowser(ModalScreen[Optional[str]]):
 # Main Application
 # ==========================================================
 
-class JackItApp(App):
+class JackItNG(App):
 
     CSS = """
     #status {
@@ -655,7 +655,7 @@ def cli(debug, script, lowpower, interval, duration, layout, address, vendor, re
         k.scan()
         return
 
-    app = JackItApp(
+    app = JackItNG(
         debug=debug,
         interval=interval,
         duration=duration,
