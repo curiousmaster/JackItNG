@@ -33,7 +33,7 @@ from pathlib import Path
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, DataTable, Static, DirectoryTree, Button, Input
 from textual.containers import Container, VerticalScroll, Horizontal
-from textual.screen import ModalScreen
+from textual.screen import Screen, ModalScreen
 from textual.reactive import reactive
 
 
@@ -230,15 +230,59 @@ class JackItDatabase:
         if self.conn:
             self.conn.close()
 
+
+# ==========================================================
+# Sort Menu Modal
+# ==========================================================
+
+class SortMenu(ModalScreen[str]):
+
+    def compose(self) -> ComposeResult:
+        yield Container(
+            Static("Select column to sort by:\n"
+                   "1 - ADDRESS\n"
+                   "2 - CHANNELS\n"
+                   "3 - COUNT\n"
+                   "4 - LAST SEEN\n"
+                   "5 - MODEL\n"
+                   "6 - ATTACKS\n"
+                   "7 - EXCLUDED\n\n"
+                   "ESC - Cancel")
+        )
+
+    async def on_key(self, event):
+        mapping = {
+            "1": "address",
+            "2": "channels",
+            "3": "poll",
+            "4": "last_seen",
+            "5": "model",
+            "6": "attack_count",
+            "7": "excluded",
+        }
+
+        if event.key in mapping:
+            self.dismiss(mapping[event.key])
+        elif event.key == "escape":
+            self.dismiss(None)
+
+
 # ==========================================================
 # Database Viewer Screen
 # ==========================================================
 
-class DatabaseScreen(ModalScreen):
+class DatabaseScreen(Screen):
+
+    DEFAULT_CSS = """
+    Footer {
+        dock: bottom;
+    }
+    """
 
     BINDINGS = [
         ("q", "close", "Back"),
         ("/", "search", "Search"),
+        ("o", "sort_menu", "Sort"),
         ("x", "toggle_exclude", "Toggle Exclude"),
         ("delete", "delete_device", "Delete"),
         ("r", "refresh", "Refresh"),
@@ -248,6 +292,8 @@ class DatabaseScreen(ModalScreen):
         super().__init__()
         self.db = db
         self.search_term = None
+        self.sort_column = "last_seen"
+        self.sort_desc = True
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -255,20 +301,60 @@ class DatabaseScreen(ModalScreen):
         yield DataTable(id="db-table")
         yield Footer()
 
+    async def action_sort_menu(self):
+
+        def handle_result(column):
+            if not column:
+                return
+
+            if column == self.sort_column:
+                self.sort_desc = not self.sort_desc
+            else:
+                self.sort_column = column
+                self.sort_desc = True
+
+            self.build_headers()
+            self.load_data()
+
+        await self.app.push_screen(SortMenu(), handle_result)
+
+
+    async def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
+
+        column_index = event.column_index
+
+        columns = [
+            "address",
+            "channels",
+            "poll",
+            "last_seen",
+            "model",
+            "attack_count",
+            "excluded",
+        ]
+
+        selected_column = columns[column_index]
+
+        if selected_column == self.sort_column:
+            self.sort_desc = not self.sort_desc
+        else:
+            self.sort_column = selected_column
+            self.sort_desc = True
+
+        self.build_headers()
+        self.load_data()
+
+
     async def on_mount(self):
         table = self.query_one(DataTable)
 
-        table.add_column("ADDRESS", width=18)
-        table.add_column("CHANNELS", width=12)
-        table.add_column("COUNT", width=8)
-        table.add_column("LAST SEEN", width=22)
-        table.add_column("MODEL", width=16)
-        table.add_column("ATTACKS", width=8)
-        table.add_column("EXC", width=5)
-
+        self.build_headers()
         self.load_data()
 
     # ------------------------------------------------------
+
+    def get_bindings(self):
+        return self.BINDINGS
 
     def load_data(self):
 
@@ -286,15 +372,14 @@ class DatabaseScreen(ModalScreen):
 
         cursor = self.db.conn.cursor()
 
+        order = "DESC" if self.sort_desc else "ASC"
         if self.search_term:
-            cursor.execute(
-                "SELECT * FROM device WHERE address LIKE ? ORDER BY last_seen DESC",
-                (f"%{self.search_term}%",)
-            )
+            filter = "WHERE address LIKE ?",(f"%{self.search_term}%")
         else:
-            cursor.execute(
-                "SELECT * FROM device ORDER BY last_seen DESC"
-            )
+            filter = ""
+
+        query = f"SELECT * FROM device {filter} ORDER BY {self.sort_column} {order}"
+        cursor.execute(query)
 
         rows = cursor.fetchall()
 
@@ -320,6 +405,32 @@ class DatabaseScreen(ModalScreen):
             table.cursor_coordinate = (restore_index, 0)
 
         # ------------------------------------------------------
+
+    def build_headers(self):
+        table = self.query_one(DataTable)
+
+        # Clear existing columns safely
+        table.clear(columns=True)
+
+        columns = [
+            ("address", "ADDRESS", 18),
+            ("channels", "CHANNELS", 12),
+            ("poll", "COUNT", 8),
+            ("last_seen", "LAST SEEN", 22),
+            ("model", "MODEL", 16),
+            ("attack_count", "ATTACKS", 8),
+            ("excluded", "EXC", 5),
+        ]
+
+        for key, label, width in columns:
+
+            # Add sort indicator if this is active sort column
+            if key == self.sort_column:
+                arrow = "v" if self.sort_desc else "^"
+                label = f"{label} {arrow}"
+
+            table.add_column(label, width=width)
+
 
     async def action_search(self):
 
