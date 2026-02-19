@@ -21,15 +21,21 @@ import os
 import sys
 import time
 import asyncio
+from datetime import datetime
 from typing import Optional
 
 import click
 
+import sqlite3
+
+from pathlib import Path
+
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, DataTable, Static, DirectoryTree, Button
+from textual.widgets import Header, Footer, DataTable, Static, DirectoryTree, Button, Input
 from textual.containers import Container, VerticalScroll, Horizontal
 from textual.screen import ModalScreen
 from textual.reactive import reactive
+
 
 from jackit import duckyparser
 from jackit import mousejack
@@ -43,6 +49,342 @@ def confirm_root():
     if hasattr(os, "getuid") and os.getuid() != 0:
         print("Must run as root.")
         sys.exit(1)
+
+
+# ==========================================================
+# Database Manager (Startup Initialization Only)
+# ==========================================================
+
+class JackItDatabase:
+
+    def __init__(self):
+        self.base_dir = Path.home() / ".jackit"
+        self.db_path = self.base_dir / "jackit.db"
+        self.conn = None
+
+        self._initialize()
+
+    # ------------------------------------------------------
+
+    def _initialize(self):
+        # Create directory only if missing
+        if not self.base_dir.exists():
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+
+        # Connect once
+        self.conn = sqlite3.connect(self.db_path)
+
+        # Create tables once
+        self._create_tables()
+
+    # ------------------------------------------------------
+
+    def _create_tables(self):
+
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS device (
+                address TEXT PRIMARY KEY,
+                channels TEXT,
+                poll INT,
+                first_seen TEXT,
+                last_seen TEXT,
+                model TEXT,
+                packet TEXT,
+                attack_count INT DEFAULT 0,
+                excluded INT DEFAULT 0
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS device_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                address TEXT,
+                timestamp TEXT
+            );
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS attack_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                address TEXT,
+                payload TEXT,
+                timestamp TEXT,
+                result TEXT
+            );
+        """)
+
+        self.conn.commit()
+
+    # ------------------------------------------------------
+    # Device Updates
+    # ------------------------------------------------------
+
+    def upsert_device(self, address, channels, poll, model, packet):
+
+        now = datetime.utcnow().isoformat()
+
+        cursor = self.conn.cursor()
+
+        # Check if device exists
+        cursor.execute(
+            "SELECT first_seen FROM device WHERE address=?",
+            (address,)
+        )
+        row = cursor.fetchone()
+
+        if row:
+            first_seen = row[0]
+        else:
+            first_seen = now
+
+        cursor.execute("""
+            INSERT OR REPLACE INTO device
+            (address, channels, poll, first_seen, last_seen, model, packet, attack_count, excluded)
+            VALUES (
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                ?,
+                COALESCE((SELECT attack_count FROM device WHERE address=?), 0),
+                COALESCE((SELECT excluded FROM device WHERE address=?), 0)
+            )
+        """, (
+            address,
+            channels,
+            poll,
+            first_seen,
+            now,
+            model,
+            packet,
+            address,
+            address
+        ))
+
+        self.conn.commit()
+
+    # ------------------------------------------------------
+
+    def log_device_event(self, address):
+        now = datetime.utcnow().isoformat()
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO device_history (address, timestamp)
+            VALUES (?, ?)
+        """, (address, now))
+
+        self.conn.commit()
+
+    # ------------------------------------------------------
+
+    def log_attack(self, address, payload, result="OK"):
+        now = datetime.utcnow().isoformat()
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO attack_log (address, payload, timestamp, result)
+            VALUES (?, ?, ?, ?)
+        """, (address, payload, now, result))
+
+        cursor.execute("""
+            UPDATE device
+            SET attack_count = attack_count + 1
+            WHERE address=?
+        """, (address,))
+
+        self.conn.commit()
+
+    # ------------------------------------------------------
+
+    def toggle_exclude(self, address):
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            UPDATE device
+            SET excluded = CASE excluded WHEN 1 THEN 0 ELSE 1 END
+            WHERE address=?
+        """, (address,))
+
+        self.conn.commit()
+
+    # ------------------------------------------------------
+
+    def is_excluded(self, address):
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            SELECT excluded FROM device WHERE address=?
+        """, (address,))
+
+        row = cursor.fetchone()
+        return row and row[0] == 1
+
+    # ------------------------------------------------------
+
+    def close(self):
+        if self.conn:
+            self.conn.close()
+
+# ==========================================================
+# Database Viewer Screen
+# ==========================================================
+
+class DatabaseScreen(ModalScreen):
+
+    BINDINGS = [
+        ("q", "close", "Back"),
+        ("/", "search", "Search"),
+        ("x", "toggle_exclude", "Toggle Exclude"),
+        ("delete", "delete_device", "Delete"),
+        ("r", "refresh", "Refresh"),
+    ]
+
+    def __init__(self, db):
+        super().__init__()
+        self.db = db
+        self.search_term = None
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Static("Database Viewer", id="status")
+        yield DataTable(id="db-table")
+        yield Footer()
+
+    async def on_mount(self):
+        table = self.query_one(DataTable)
+
+        table.add_column("ADDRESS", width=18)
+        table.add_column("CHANNELS", width=12)
+        table.add_column("COUNT", width=8)
+        table.add_column("LAST SEEN", width=22)
+        table.add_column("MODEL", width=16)
+        table.add_column("ATTACKS", width=8)
+        table.add_column("EXC", width=5)
+
+        self.load_data()
+
+    # ------------------------------------------------------
+
+    def load_data(self):
+
+        table = self.query_one(DataTable)
+
+        # Save currently selected address (if any)
+        selected_address = None
+        if table.cursor_row is not None:
+            try:
+                selected_address = table.get_row_at(table.cursor_row)[0]
+            except Exception:
+                selected_address = None
+
+        table.clear()
+
+        cursor = self.db.conn.cursor()
+
+        if self.search_term:
+            cursor.execute(
+                "SELECT * FROM device WHERE address LIKE ? ORDER BY last_seen DESC",
+                (f"%{self.search_term}%",)
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM device ORDER BY last_seen DESC"
+            )
+
+        rows = cursor.fetchall()
+
+        restore_index = None
+
+        for idx, row in enumerate(rows):
+            table.add_row(
+                row[0],  # address
+                row[1],  # channels
+                str(row[2]),  # poll
+                row[4],  # last_seen
+                row[5],  # model
+                str(row[7]),  # attack_count
+                "YES" if row[8] else "NO"
+            )
+
+            # Remember row index if this was selected before
+            if selected_address and row[0] == selected_address:
+                restore_index = idx
+
+        # Restore cursor position
+        if restore_index is not None:
+            table.cursor_coordinate = (restore_index, 0)
+
+        # ------------------------------------------------------
+
+    async def action_search(self):
+
+        def _set_search(value):
+            self.search_term = value
+            self.load_data()
+
+        await self.app.push_screen(
+            InputScreen("Search address (empty=all): "),
+            _set_search
+        )
+
+    # ------------------------------------------------------
+
+    async def action_toggle_exclude(self):
+        table = self.query_one(DataTable)
+
+        if table.cursor_row is None:
+            return
+
+        address = table.get_row_at(table.cursor_row)[0]
+
+        self.db.toggle_exclude(address)
+        self.load_data()
+
+    # ------------------------------------------------------
+
+    async def action_delete_device(self):
+        table = self.query_one(DataTable)
+
+        if table.cursor_row is None:
+            return
+
+        address = table.get_row_at(table.cursor_row)[0]
+
+        cursor = self.db.conn.cursor()
+        cursor.execute("DELETE FROM device WHERE address=?", (address,))
+        cursor.execute("DELETE FROM device_history WHERE address=?", (address,))
+        cursor.execute("DELETE FROM attack_log WHERE address=?", (address,))
+        self.db.conn.commit()
+
+        self.load_data()
+
+    # ------------------------------------------------------
+
+    async def action_refresh(self):
+        self.load_data()
+
+    def action_close(self):
+        self.dismiss()
+
+class InputScreen(ModalScreen[str]):
+
+    def __init__(self, prompt):
+        super().__init__()
+        self.prompt = prompt
+
+    def compose(self) -> ComposeResult:
+        yield Container(
+            Static(self.prompt),
+            Input(placeholder="Enter value"),
+        )
+
+    async def on_input_submitted(self, event):
+        self.dismiss(event.value)
 
 
 # ==========================================================
@@ -282,8 +624,10 @@ class JackItNG(App):
         ("s", "toggle_scan", "Scan"),
         ("p", "select_payload", "Payload"),
         ("v", "view_payload", "View Payload"),
+        ("x", "toggle_exclude", "Exclude"),
         ("a", "attack_selected", "Attack selected"),
         ("A", "autopwn", "Autopwn"),
+        ("D", "open_database", "Database"),
         ("q", "quit", "Quit"),
     ]
 
@@ -301,6 +645,8 @@ class JackItNG(App):
         all_channels=False,
     ):
         super().__init__()
+
+        self.db = JackItDatabase()
 
         self.debug_mode = debug
         self.interval = interval
@@ -348,6 +694,11 @@ class JackItNG(App):
         fancy_line = "─" * (width - 1)
         summary = self.query_one("#device-summary", Static)
         summary.update(f"{fancy_line}\nDevices found: 0")
+
+    async def on_shutdown(self):
+        if hasattr(self, "db"):
+            self.db.close()
+
 
     # ------------------------------------------------------
     # Countdown
@@ -423,9 +774,44 @@ class JackItNG(App):
                 packet,
             )
 
+            self.db.upsert_device(
+                address=addr,
+                channels=channels,
+                poll=count,
+                model=device_type,
+                packet=str(packet),
+            )
+
+            self.db.log_device_event(addr)
+
+
         width = self.size.width
         fancy_line = "─" * (width - 1)
         summary.update(f"{fancy_line}\nDevices found: {len(self.jack.devices)}")
+
+    async def action_open_database(self):
+        if not hasattr(self, "db") or self.db is None:
+            self.update_status("Database not initialized")
+            return
+
+        await self.push_screen(DatabaseScreen(self.db))
+
+    async def action_toggle_exclude(self):
+        table = self.query_one(DataTable)
+
+        if table.cursor_row is None:
+            return
+
+        devices = list(self.jack.devices.items())
+        row = table.cursor_row
+
+        if row >= len(devices):
+            return
+
+        addr, _ = devices[row]
+
+        self.db.toggle_exclude(addr)
+
 
     async def action_toggle_scan(self):
         self.scanning = not self.scanning
@@ -498,6 +884,9 @@ class JackItNG(App):
         )
 
         await self.push_screen(dialog, self._on_attack_selected_confirmed)
+
+        self.db.log_attack(addr, self.payload_name)
+
 
     async def _on_attack_selected_confirmed(self, confirmed: bool):
 
@@ -588,6 +977,9 @@ class JackItNG(App):
 
         for addr, device in self.jack.devices.items():
 
+            if self.db.is_excluded(addr):
+                continue
+
             payload = device["payload"]
             channels = device["channels"]
             address = device["address"]
@@ -607,6 +999,8 @@ class JackItNG(App):
                     self.jack.attack(hid(address, payload), self.attack)
 
         self.update_status()
+        self.db.log_attack(addr, self.payload_name)
+
 
 
 
