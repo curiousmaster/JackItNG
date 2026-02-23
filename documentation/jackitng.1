@@ -1,42 +1,77 @@
-.TH JACKIT 1 "February 2026" "JackITNG 2.0" "User Commands"
+.TH JACKITNG 1 "February 2026" "JackITNG 2.0" "User Commands"
+
 .SH NAME
-jackit \- Terminal-based OSINT and analysis toolkit built with Textual
+jackitng \- Terminal-based wireless interaction and automation toolkit
 
 .SH SYNOPSIS
-.B jackit
-.RI [ options ] " [target]"
+.B jackitng
+.RI [ OPTIONS ]
 
 .SH DESCRIPTION
-.B jackit
+.B jackitng
 is a terminal user interface (TUI) application built with Python and
-Textual. It provides an interactive environment for managing and executing
-analysis tasks, OSINT workflows, and related operational tooling.
+Textual. It provides an interactive environment for wireless automation,
+device interaction, and scripted execution workflows.
 
 The interface is fully keyboard-driven and supports hierarchical screens
 with context-aware key bindings.
 
 .SH OPTIONS
-.TP
-.B \-h, --help
-Display help information and exit.
-
-.TP
-.B \-v, --version
-Show version information and exit.
 
 .TP
 .B --debug
-Enable debug mode.
+Enable debug mode with extended logging output.
 
 .TP
-.B --config FILE
-Specify an alternate configuration file.
+.B --script PATH
+Execute a script located at PATH.
 
 .TP
-.I target
-Optional input target (file, asset, or identifier depending on module).
+.B --lowpower
+Enable low power mode for reduced transmission intensity.
+
+.TP
+.B --interval INTEGER
+Set execution interval in seconds.
+
+.TP
+.B --duration INTEGER
+Set total execution duration in seconds.
+
+.TP
+.B --layout TEXT
+Specify keyboard layout profile.
+
+.TP
+.B --address TEXT
+Target specific device address.
+
+.TP
+.B --vendor TEXT
+Filter or target devices by vendor name.
+
+.TP
+.B --reset
+Reset device or internal state before execution.
+
+.TP
+.B --autopwn
+Enable automated exploitation mode.
+
+.TP
+.B --all-channels
+Scan or operate on all available channels.
+
+.TP
+.B --keylogging
+Enable keylogging functionality.
+
+.TP
+.B --help
+Show help message and exit.
 
 .SH INTERFACE
+
 The application uses a dynamic key binding system.
 
 Bindings are defined at two levels:
@@ -56,6 +91,7 @@ Q Quit  H Help  |  ESC Close  F1 Info
 Global bindings remain active at all times unless explicitly overridden.
 
 .SH NAVIGATION
+
 The interface is entirely keyboard-driven.
 
 Typical controls:
@@ -75,7 +111,8 @@ Display contextual help.
 Additional bindings depend on the active screen.
 
 .SH ARCHITECTURE
-.B jackit
+
+.B jackitng
 uses:
 
 .IP
@@ -96,26 +133,18 @@ Parent Screens
 .br
 Application (global)
 
-.SH CONFIGURATION
-Configuration files may be located in:
-
-.nf
-~/.jackit/
-etc/jackit/
-.fi
-
-Exact configuration structure depends on installed modules.
-
 .SH FILES
+
 .TP
-.B ~/.jackit/
+.B ~/.jackitng/
 User configuration directory.
 
 .TP
-.B /usr/share/jackit/
+.B /usr/share/jackitng/
 Shared resources.
 
 .SH EXIT STATUS
+
 .TP
 .B 0
 Success.
