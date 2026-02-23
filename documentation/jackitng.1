@@ -1,0 +1,135 @@
+.TH JACKIT 1 "February 2026" "JackITNG 2.0" "User Commands"
+.SH NAME
+jackit \- Terminal-based OSINT and analysis toolkit built with Textual
+
+.SH SYNOPSIS
+.B jackit
+.RI [ options ] " [target]"
+
+.SH DESCRIPTION
+.B jackit
+is a terminal user interface (TUI) application built with Python and
+Textual. It provides an interactive environment for managing and executing
+analysis tasks, OSINT workflows, and related operational tooling.
+
+The interface is fully keyboard-driven and supports hierarchical screens
+with context-aware key bindings.
+
+.SH OPTIONS
+.TP
+.B \-h, --help
+Display help information and exit.
+
+.TP
+.B \-v, --version
+Show version information and exit.
+
+.TP
+.B --debug
+Enable debug mode.
+
+.TP
+.B --config FILE
+Specify an alternate configuration file.
+
+.TP
+.I target
+Optional input target (file, asset, or identifier depending on module).
+
+.SH INTERFACE
+The application uses a dynamic key binding system.
+
+Bindings are defined at two levels:
+
+.IP
+1. Global bindings defined in the App class.
+.br
+2. Screen-specific bindings defined per active screen.
+
+When inside a screen, screen-level bindings are displayed after
+a delimiter in the footer:
+
+.nf
+Q Quit  H Help  |  ESC Close  F1 Info
+.fi
+
+Global bindings remain active at all times unless explicitly overridden.
+
+.SH NAVIGATION
+The interface is entirely keyboard-driven.
+
+Typical controls:
+
+.TP
+.B q
+Quit application.
+
+.TP
+.B ESC
+Close current screen.
+
+.TP
+.B F1
+Display contextual help.
+
+Additional bindings depend on the active screen.
+
+.SH ARCHITECTURE
+.B jackit
+uses:
+
+.IP
+\- Python 3
+.br
+\- Textual TUI framework
+.br
+\- Screen stack navigation model
+.br
+\- Context-aware binding resolution
+
+Bindings are resolved in the following order:
+
+.IP
+Active Screen
+.br
+Parent Screens
+.br
+Application (global)
+
+.SH CONFIGURATION
+Configuration files may be located in:
+
+.nf
+~/.jackit/
+etc/jackit/
+.fi
+
+Exact configuration structure depends on installed modules.
+
+.SH FILES
+.TP
+.B ~/.jackit/
+User configuration directory.
+
+.TP
+.B /usr/share/jackit/
+Shared resources.
+
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+
+.TP
+.B 1
+General error.
+
+.SH AUTHOR
+Curious Master
+
+.SH LICENSE
+Refer to the project LICENSE file for licensing details.
+
+.SH SEE ALSO
+.BR python (1),
+.BR textual (1)

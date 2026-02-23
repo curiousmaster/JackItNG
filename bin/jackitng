@@ -895,7 +895,6 @@ class JackItNG(App):
 
             self.db.log_device_event(addr)
 
-
         width = self.size.width
         fancy_line = "─" * (width - 1)
         summary.update(f"{fancy_line}\nDevices found: {len(self.jack.devices)}")
