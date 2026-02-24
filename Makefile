@@ -11,10 +11,15 @@ MKDIR_P       = mkdir -p
 BIN_SRC   = bin/$(NAME)
 MAN_SRC   = documentation/$(NAME).1
 
-.PHONY: all install uninstall clean
+.PHONY: all requirements install uninstall clean
 
 all:
 	@echo "Nothing to build. Use 'make install'."
+
+requirements:
+	@echo "Installing JackitNG requirements..."
+	pip install -r requirements.txt
+	pip install -e .
 
 install:
 	@echo "Installing JackitNG to $(PREFIX)..."

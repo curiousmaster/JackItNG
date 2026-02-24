@@ -10,7 +10,7 @@ setup(
     version='0.1.0',
     author='Curious Master',
     packages=['jackit', 'jackit.lib', 'jackit.plugins'],
-    scripts=['bin/jackit','bin/jacklst'],
+    scripts=['bin/jackitng'],
     url='https://github.com/curious.master/JackItNG',
     license='BSD',
     description='Exploit framework for MouseJack vulnerability.',

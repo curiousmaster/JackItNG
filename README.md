@@ -60,7 +60,8 @@ Clone and install:
 
     git clone https://github.com/curiousmaster/JackItNG.git
     cd JackItNG
-    pip install -e .
+    make requirements
+    make install
 
 ------------------------------------------------------------------------
 
@@ -68,7 +69,7 @@ Clone and install:
 
 Launch the application:
 
-    sudo jackit
+    sudo jackitng
 
 ------------------------------------------------------------------------
 

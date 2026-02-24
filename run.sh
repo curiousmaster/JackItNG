@@ -8,7 +8,7 @@ DURATION=5
 KBD=sv
 
 
-bin/jackit \
+bin/jackitng \
   	--reset \
 	--script ${PAYLOAD} \
 	--interval ${INTERVAL} \
